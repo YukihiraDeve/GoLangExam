@@ -24,7 +24,7 @@ func findOpenPort() (int, string, error) {
 	var pingResponse string
 	client := &http.Client{Timeout: timeout}
 
-	for port := 1; port <= 10000; port++ {
+	for port := 5174; port <= 5174; port++ {
 		wg.Add(1)
 		go func(p int) {
 			defer wg.Done()
@@ -84,10 +84,8 @@ func main() {
 	fmt.Printf("Port trouvé: %d\nRéponse à /ping: %s\n", port, pingResponse)
 	client := &http.Client{Timeout: timeout}
 
-	// Initialiser les données utilisateur
 	userData := map[string]string{"User": "Valentin"}
 
-	// Effectuer les requêtes /signup et /check avant d'essayer de récupérer le secret
 	signupURL := fmt.Sprintf("http://%s:%d/signup", ip, port)
 	checkURL := fmt.Sprintf("http://%s:%d/check", ip, port)
 
@@ -103,7 +101,6 @@ func main() {
 		return
 	}
 
-	// Envoyer 10 requêtes au chemin /getUserSecret pour obtenir le secret
 	secretURL := fmt.Sprintf("http://%s:%d/getUserSecret", ip, port)
 	for i := 0; i < 100; i++ {
 		resp, err := postRequest(client, secretURL, userData)
@@ -132,6 +129,7 @@ func main() {
 	// Essayer différents chemins avec le secret trouvé
 	paths := []string{"/getUserLevel", "/getUserPoints", "/iNeedAHint", "/enterChallenge", "/submitSolution"}
 	for _, path := range paths {
+
 		url := fmt.Sprintf("http://%s:%d%s", ip, port, path)
 		resp, err := postRequest(client, url, userData)
 		if err != nil {
@@ -145,8 +143,67 @@ func main() {
 			fmt.Printf("Erreur lors de la lecture du corps de la réponse sur %s: %s\n", url, err)
 			continue
 		}
+		if path == "/getUserLevel" {
+			levelStr := strings.TrimSpace(string(body))
+			userData["Level"] = strings.TrimPrefix(levelStr, "Level: ")
+		}
+		if path == "/getUserPoints" {
+			pointsStr := strings.TrimSpace(string(body))
+			parts := strings.Split(pointsStr, " ")
+			if len(parts) > 0 {
+				userData["Points"] = parts[len(parts)-1]
+			}
+		}
+
+		if path == "/submitSolution" {
+			userData["Protocol"] = "MD5"
+
+			submitSolutionData := map[string]interface{}{
+				"User":   userData["User"],
+				"Secret": userData["secret"],
+				"Content": map[string]interface{}{
+					"Level": userData["Level"],
+					"Challenge": map[string]string{
+						"Username": userData["User"],
+						"Secret":   "393f0e0270b94d13b1610db79f878423",
+						"Points":   userData["Points"],
+					},
+					"Protocol":  userData["Protocol"],
+					"SecretKey": "4A1EAF7A5881",
+				},
+			}
+
+			fmt.Println(userData["User"])
+			fmt.Println(userData["secret"])
+			fmt.Println(userData["Level"])
+			fmt.Println(userData["Points"])
+			fmt.Println(userData["Protocol"])
+
+			jsonData, err := json.Marshal(submitSolutionData)
+			if err != nil {
+				fmt.Printf("Erreur lors de la création du JSON : %s\n", err)
+				return
+			}
+
+			resp, err := client.Post(url, "application/json", bytes.NewBuffer(jsonData))
+			if err != nil {
+				fmt.Printf("Erreur lors de la requête POST sur %s: %s\n", url, err)
+				return
+			}
+			defer resp.Body.Close()
+
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				fmt.Printf("Erreur lors de la lecture du corps de la réponse sur %s: %s\n", url, err)
+				return
+			}
+
+			// Afficher la réponse pour /submitSolution
+			fmt.Printf("Réponse POST de %s: %s\nCorps: %s\n", url, resp.Status, string(body))
+			continue
+		}
 
 		// Afficher les en-têtes et le corps de la réponse pour chaque chemin
-		fmt.Printf("Réponse POST de %s: %s\nEn-têtes: %v\nCorps: %s\n", url, resp.Status, resp.Header, string(body))
+		fmt.Printf("Corps: %s\n", string(body))
 	}
 }

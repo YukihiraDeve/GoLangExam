@@ -1,0 +1,14 @@
+{
+		User
+		Secret
+		Content {
+			Level
+			Challenge {
+				Username
+				Secret
+				Points
+			}
+			Protocol
+			SecretKey
+		}
+	}
