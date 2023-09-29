@@ -121,9 +121,10 @@ func main() {
 
 		secret := string(body)
 		fmt.Printf("Tentative %d, Réponse: %s\n", i+1, secret)
-		if strings.HasPrefix(secret, "User secret: ") {
+		if strings.HasPrefix(secret, "User secret:") {
 			fmt.Println("Clé secrète trouvée:", secret)
-			userData["Secret"] = secret // Mettre à jour le secret dans userData
+			trimmedSecretKey := strings.TrimSpace(strings.TrimPrefix(secret, "User secret:"))
+			userData["secret"] = trimmedSecretKey // Mettre à jour le secret dans userData
 			break
 		}
 	}
